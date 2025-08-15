@@ -2,7 +2,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>JACKRIP � Ripper & Atlas</title>
+<title>JACKRIP – Ripper & Atlas</title>
 <style>
   :root{--bg:#0f1115;--fg:#eef0f3;--mut:#9aa4ad;--card:#161b22;--br:#263142;--hl:#7ab7ff}
   *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Arial}
@@ -84,7 +84,7 @@
         <div class="row">
           <input id="ripperFile" type="file" accept="image/*">
           <div class="toolbarTiny">
-            <button id="zoomOutBtn">?</button>
+            <button id="zoomOutBtn">–</button>
             <button id="zoomInBtn">+</button>
             <button id="zoom100Btn">100%</button>
             <button id="zoomFitBtn">Fit</button>
@@ -103,7 +103,7 @@
           <label style="margin-left:12px"><input id="curvedChk" type="checkbox"> Curved edges (experimental)</label><br>
           Quad: 4 clicks, 5th click restarts. Drag corners; drag inside to move all.  
           Lasso does not correct perspective. After release, click-drag inside to move.  
-          Pan with <b>MMB</b> (or hold Space). Wheel zooms to cursor.
+          Pan with <b>MMB</b> (or hold Space). Wheel zooms to cursor. Hold <b>Shift</b> while dragging to axis-lock.
         </div>
         <div class="row" style="margin-top:8px"><button id="resetBtn">Reset Tool</button></div>
       </div>
@@ -134,7 +134,7 @@
           <div class="title">Images</div>
           <div class="drop" id="dropZone">
             <input id="fileInput" type="file" accept="image/*" multiple hidden>
-            <div>Drag images here or <button id="browseBtn" type="button">Browse�</button></div>
+            <div>Drag images here or <button id="browseBtn" type="button">Browse…</button></div>
           </div>
           <div class="thumbs" id="thumbs"></div>
         </div>
@@ -175,7 +175,7 @@ $$(".tabBtn").forEach(btn=>btn.addEventListener("click",()=>{$$(".tabBtn").forEa
 const state={items:[],placements:[],size:{w:1024,h:1024}};
 const atlas=$("#atlasCanvas"), aG=atlas.getContext("2d",{alpha:true});
 const atlasInfo=$("#atlasInfo");
-function syncAtlasCss(){atlas.style.width=state.size.w+"px";atlas.style.height=state.size.h+"px";atlasInfo.textContent=`Atlas: ${state.size.w}�${state.size.h}px`;}
+function syncAtlasCss(){atlas.style.width=state.size.w+"px";atlas.style.height=state.size.h+"px";atlasInfo.textContent=`Atlas: ${state.size.w}×${state.size.h}px`;}
 function drawAtlas(){
   atlas.width=state.size.w; atlas.height=state.size.h; syncAtlasCss();
   aG.clearRect(0,0,atlas.width,atlas.height); aG.imageSmoothingEnabled=false;
@@ -187,7 +187,7 @@ function thumbs(){
   state.items.forEach((it,idx)=>{
     const d=document.createElement("div"); d.className="thumb";
     const c=document.createElement("canvas"); c.width=it.w; c.height=it.h; c.getContext("2d").drawImage(it.canvas,0,0);
-    const label=document.createElement("div"); label.className="hint"; label.textContent=`${it.name} (${it.w}�${it.h})`;
+    const label=document.createElement("div"); label.className="hint"; label.textContent=`${it.name} (${it.w}×${it.h})`;
     const rm=document.createElement("button"); rm.textContent="Remove"; rm.onclick=()=>{state.items.splice(idx,1); state.placements=state.placements.filter(p=>p.name!==it.name); thumbs(); drawAtlas();};
     d.append(c,label,rm); host.append(d);
   });
@@ -218,7 +218,7 @@ $("#packBtn").addEventListener("click",()=>{
   w=Math.min(w,maxW); h=Math.min(h,maxH); state.size={w,h}; $("#atlasW").value=w; $("#atlasH").value=h;
   state.placements=res.blocks.filter(b=>b.fit).map(b=>({name:b.name,x:b.fit.x,y:b.fit.y,w:b.w,h:b.h}));
   const failed=res.blocks.filter(b=>!b.fit).length;
-  $("#packStatus").textContent=failed?`${failed} didn�t fit`:`Packed ${state.placements.length}/${state.items.length}`;
+  $("#packStatus").textContent=failed?`${failed} didn’t fit`:`Packed ${state.placements.length}/${state.items.length}`;
   drawAtlas();
 });
 $("#resizeAtlasBtn").addEventListener("click",()=>{
@@ -307,9 +307,7 @@ function bilinear(data,sw,sh,x,y){
 
 /* ---------- Homography (unit square -> quad) ---------- */
 function solve8x8(A,b){
-  // Gaussian elimination with partial pivoting
   for(let i=0;i<8;i++){
-    // pivot
     let max=i; for(let r=i+1;r<8;r++) if(Math.abs(A[r][i])>Math.abs(A[max][i])) max=r;
     if(max!==i){ [A[i],A[max]]=[A[max],A[i]]; [b[i],b[max]]=[b[max],b[i]]; }
     const piv=A[i][i]||1e-12;
@@ -318,17 +316,16 @@ function solve8x8(A,b){
       for(let c=i;c<8;c++) A[r][c]-=f*A[i][c]; b[r]-=f*b[i];
     }
   }
-  return b; // now solution
+  return b;
 }
 function homographyFromQuad(TL,TR,BR,BL){
-  // map (u,v) in unit square to the quad
   const pts=[[0,0,TL.x,TL.y],[1,0,TR.x,TR.y],[1,1,BR.x,BR.y],[0,1,BL.x,BL.y]];
   const A=[], b=[];
   for(const [u,v,x,y] of pts){
     A.push([u,v,1, 0,0,0, -x*u, -x*v]); b.push(x);
     A.push([0,0,0, u,v,1, -y*u, -y*v]); b.push(y);
   }
-  const h=solve8x8(A,b); // [h11..h32], h33=1
+  const h=solve8x8(A,b);
   return [ [h[0],h[1],h[2]],
            [h[3],h[4],h[5]],
            [h[6],h[7],1   ] ];
@@ -340,11 +337,13 @@ function applyH(H,u,v){
   return {x:X/W, y:Y/W};
 }
 
-/* ---------- QUAD tool ---------- */
+/* ---------- QUAD tool (with axis-lock + snapping) ---------- */
 const quadTool={
   placing:true, points:[], corners:[{x:60,y:60},{x:260,y:60},{x:260,y:260},{x:60,y:260}],
   dragCorner:-1, dragAll:false, lastP:null, r:7,
-  start(){this.placing=true; this.points=[]; this.dragCorner=-1; this.dragAll=false; this.lastP=null; drawOverlay();},
+  dragAxisLock:null, cornerStart:{x:0,y:0},
+
+  start(){this.placing=true; this.points=[]; this.dragCorner=-1; this.dragAll=false; this.lastP=null; this.dragAxisLock=null; drawOverlay();},
   reset(){this.start();},
   order(pts){const cx=pts.reduce((s,p)=>s+p.x,0)/4, cy=pts.reduce((s,p)=>s+p.y,0)/4;
     const srt=pts.slice().sort((a,b)=>Math.atan2(a.y-cy,a.x-cx)-Math.atan2(b.y-cy,b.x-cx));
@@ -357,26 +356,108 @@ const quadTool={
       else{ this.start(); this.points=[p]; }
       drawOverlay(); return;
     }
-    const ci=this.hitCorner(p); if(ci>=0){ this.dragCorner=ci; return; }
-    if(pointInPoly(p,this.corners)){ this.dragAll=true; this.lastP=p; }
+    const ci=this.hitCorner(p);
+    if(ci>=0){ this.dragCorner=ci; this.cornerStart={x:this.corners[ci].x,y:this.corners[ci].y}; this.dragAxisLock=null; return; }
+    if(pointInPoly(p,this.corners)){ this.dragAll=true; this.lastP=p; this.dragAxisLock=null; }
   },
-  mousemove(p,buttons){
+  mousemove(p,buttons,shift){
     if(this.placing || !buttons) return;
-    if(this.dragCorner>=0){ this.corners[this.dragCorner]=p; toolAPI.maybeAutosize(); drawOverlay(); }
-    else if(this.dragAll && this.lastP){ const dx=p.x-this.lastP.x, dy=p.y-this.lastP.y; this.lastP=p;
-      for(let i=0;i<4;i++){ this.corners[i]={x:this.corners[i].x+dx,y:this.corners[i].y+dy}; }
+    const snapOn=$("#snapChk").checked;
+    const GRID=8, TOL=4; // grid size & snap tolerance (px)
+
+    const snapToOtherCorners=(pt,idx)=>{
+      for(let i=0;i<4;i++){ if(i===idx) continue;
+        const c=this.corners[i];
+        if(Math.abs(pt.x-c.x)<=TOL) pt.x=c.x;
+        if(Math.abs(pt.y-c.y)<=TOL) pt.y=c.y;
+      }
+      return pt;
+    };
+    const snapCoordToGrid=v=>{
+      const gv=Math.round(v/GRID)*GRID;
+      return (Math.abs(gv-v)<=TOL)?gv:v;
+    };
+
+    if(this.dragCorner>=0){
+      let newP={x:p.x,y:p.y};
+
+      // axis lock (decide by initial direction while Shift is held)
+      if(shift){
+        if(this.dragAxisLock==null){
+          const dx=Math.abs(newP.x-this.cornerStart.x), dy=Math.abs(newP.y-this.cornerStart.y);
+          this.dragAxisLock = (dx>dy) ? "x" : "y";
+        }
+        if(this.dragAxisLock==="x") newP.y=this.cornerStart.y;
+        else if(this.dragAxisLock==="y") newP.x=this.cornerStart.x;
+      }else{
+        this.dragAxisLock=null;
+      }
+
+      if(snapOn){
+        newP.x=snapCoordToGrid(newP.x);
+        newP.y=snapCoordToGrid(newP.y);
+        newP=snapToOtherCorners(newP,this.dragCorner);
+      }
+
+      // clamp inside image bounds
+      newP.x=clamp(newP.x,0,src.width);
+      newP.y=clamp(newP.y,0,src.height);
+
+      this.corners[this.dragCorner]=newP;
+      toolAPI.maybeAutosize();
+      drawOverlay();
+
+    } else if(this.dragAll && this.lastP){
+      let dx=p.x-this.lastP.x, dy=p.y-this.lastP.y;
+
+      // axis lock for whole-quad move
+      if(shift){
+        if(this.dragAxisLock==null){
+          this.dragAxisLock=(Math.abs(dx)>Math.abs(dy))?"x":"y";
+        }
+        if(this.dragAxisLock==="x") dy=0; else if(this.dragAxisLock==="y") dx=0;
+      }else{
+        this.dragAxisLock=null;
+      }
+
+      // compute tentative moved corners
+      let moved=this.corners.map(c=>({x:c.x+dx,y:c.y+dy}));
+
+      // grid snapping for whole move (apply a shared small adjustment so the quad stays rigid)
+      if(snapOn){
+        // find best small adjustment toward nearest grid for any corner (independently on axes)
+        let bestAdjX=0, bestAdjY=0, bestAx=Infinity, bestAy=Infinity;
+        for(const m of moved){
+          const gx=Math.round(m.x/GRID)*GRID, gy=Math.round(m.y/GRID)*GRID;
+          const ax=Math.abs(gx-m.x), ay=Math.abs(gy-m.y);
+          if(ax<=TOL && ax<bestAx){ bestAx=ax; bestAdjX=gx-m.x; }
+          if(ay<=TOL && ay<bestAy){ bestAy=ay; bestAdjY=gy-m.y; }
+        }
+        // apply adjustments uniformly
+        if(bestAx!==Infinity) moved=moved.map(pt=>({x:pt.x+bestAdjX,y:pt.y}));
+        if(bestAy!==Infinity) moved=moved.map(pt=>({x:pt.x,y:pt.y+bestAdjY}));
+      }
+
+      // clamp within image bounds
+      const minX=Math.min(...moved.map(p=>p.x)), minY=Math.min(...moved.map(p=>p.y));
+      const maxX=Math.max(...moved.map(p=>p.x)), maxY=Math.max(...moved.map(p=>p.y));
+      const offX = (minX<0)?-minX : (maxX>src.width)?(src.width-maxX):0;
+      const offY = (minY<0)?-minY : (maxY>src.height)?(src.height-maxY):0;
+      if(offX||offY) moved=moved.map(pt=>({x:pt.x+offX,y:pt.y+offY}));
+
+      // commit
+      this.corners=moved;
+      this.lastP={x:p.x,y:p.y};
       drawOverlay();
     }
   },
-  mouseup(){ this.dragCorner=-1; this.dragAll=false; this.lastP=null; },
+  mouseup(){ this.dragCorner=-1; this.dragAll=false; this.lastP=null; this.dragAxisLock=null; },
   draw(){
     oG.clearRect(0,0,ovl.width,ovl.height);
     const pts=this.placing?this.points:this.corners; if(!pts.length) return;
     oG.lineWidth=2; oG.strokeStyle="rgba(122,183,255,.9)"; oG.fillStyle="rgba(122,183,255,.08)";
     if(!this.placing && pts.length===4){
-      // straight edges unless curvedChk checked (we only *draw* curves when on)
       if($("#curvedChk").checked){
-        // draw cubic-ish via quadratics through midpoints for feedback (visual only)
         const C=this.corners, M=[0,1,2,3].map(i=>({x:(C[i].x+C[(i+1)%4].x)/2,y:(C[i].y+C[(i+1)%4].y)/2}));
         oG.beginPath();
         oG.moveTo(C[0].x,C[0].y);
@@ -403,7 +484,6 @@ const quadTool={
     if(!srcImg || this.placing) return false;
     out.width=w; out.height=h; outG.clearRect(0,0,w,h);
     if($("#curvedChk").checked){
-      // fallback: curved "approx" � use bilinear blending on unit square (kept minimal)
       const TL=this.corners[0],TR=this.corners[1],BR=this.corners[2],BL=this.corners[3];
       const srcData=sG.getImageData(0,0,src.width,src.height), od=outG.createImageData(w,h);
       let p=0; for(let y=0;y<h;y++){ const v=h>1?y/(h-1):0; for(let x=0;x<w;x++){ const u=w>1?x/(w-1):0;
@@ -413,7 +493,6 @@ const quadTool={
         od.data[p++]=c[0]; od.data[p++]=c[1]; od.data[p++]=c[2]; od.data[p++]=c[3];
       }} outG.putImageData(od,0,0); return true;
     }else{
-      // perspective-correct homography (unit square -> quad)
       const H=homographyFromQuad(this.corners[0],this.corners[1],this.corners[2],this.corners[3]);
       const srcData=sG.getImageData(0,0,src.width,src.height), od=outG.createImageData(w,h);
       let p=0; for(let y=0;y<h;y++){ const v=h>1?y/(h-1):0; for(let x=0;x<w;x++){ const u=w>1?x/(w-1):0;
@@ -456,14 +535,17 @@ const lassoTool={
 const toolAPI={active:quadTool,
   start(n){this.active=(n==="lasso"?lassoTool:quadTool);this.active.start();},
   reset(){this.active.reset();},
-  mousedown:p=>toolAPI.active.mousedown?.(p), mousemove:(p,b)=>toolAPI.active.mousemove?.(p,b), mouseup:()=>toolAPI.active.mouseup?.(),
-  draw:()=>toolAPI.active.draw?.(), extract:(w,h,q)=>toolAPI.active.extract?.(w,h,q),
+  mousedown:p=>toolAPI.active.mousedown?.(p),
+  mousemove:(p,b,shift)=>toolAPI.active.mousemove?.(p,b,shift),
+  mouseup:()=>toolAPI.active.mouseup?.(),
+  draw:()=>toolAPI.active.draw?.(),
+  extract:(w,h,q)=>toolAPI.active.extract?.(w,h,q),
   maybeAutosize(){ if($("#autoSize").checked && this.active===quadTool && !quadTool.placing){ const d=quadTool.autosize(); $("#outW").value=d.w; $("#outH").value=d.h; } }
 };
 function drawOverlay(){toolAPI.draw();}
 $("#resetBtn").addEventListener("click",()=>toolAPI.reset());
 ovl.addEventListener("mousedown",e=>{ if(e.button!==0||view.space) return; toolAPI.mousedown(cpos(e)); });
-window.addEventListener("mousemove",e=>{ if(e.buttons) toolAPI.mousemove(cpos(e),e.buttons); });
+window.addEventListener("mousemove",e=>{ if(e.buttons) toolAPI.mousemove(cpos(e),e.buttons,e.shiftKey); });
 window.addEventListener("mouseup",()=>toolAPI.mouseup());
 $('[data-tool="quad"]').setAttribute("aria-pressed","true");
 $$('[data-tool]').forEach(b=>b.addEventListener("click",()=>{$$('[data-tool]').forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); toolAPI.start(b.dataset.tool);}));
@@ -488,11 +570,9 @@ $("#saveRipBtn").addEventListener("click",()=>{ if(!out.width){alert("Extract fi
 (function init(){
   const ctx=src.getContext('2d'); src.width=640; src.height=360; ovl.width=src.width; ovl.height=src.height;
   ctx.fillStyle="#0b0f14"; ctx.fillRect(0,0,src.width,src.height);
-  ctx.fillStyle="#8899aa"; ctx.fillText("Drop or browse an image. Pan with MMB/Space. Wheel to zoom.", 12, 20);
+  ctx.fillStyle="#8899aa"; ctx.fillText("Drop or browse an image. Pan with MMB/Space. Wheel to zoom. Hold Shift to axis-lock.", 12, 20);
   const w=+$("#atlasW").value|0, h=+$("#atlasH").value|0; state.size={w,h}; drawAtlas(); applyView();
 })();
 })();</script>
 </body>
 </html>
-JACKRIP_v5.html
-30 KB
