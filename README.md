@@ -2,7 +2,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>JACKRIP – Ripper & Atlas</title>
+<title>JACKRIPv6 – Ripper & Atlas</title>
 <style>
   :root{--bg:#0f1115;--fg:#eef0f3;--mut:#9aa4ad;--card:#161b22;--br:#263142;--hl:#7ab7ff}
   *{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Arial}
@@ -14,13 +14,14 @@
   .tabs{margin-left:auto;display:flex;gap:10px}
   .tabBtn{border:1px solid var(--br);background:var(--card);color:var(--fg);padding:10px 14px;border-radius:12px;cursor:pointer}
   .tabBtn[aria-pressed="true"]{outline:2px solid var(--hl)}
-  main{display:grid;grid-template-columns:270px 1fr;gap:18px;max-width:1600px;margin:0 auto;padding:16px}
+  main{display:grid;grid-template-columns:300px 1fr;gap:18px;max-width:1600px;margin:0 auto;padding:16px}
   aside{display:flex;flex-direction:column;gap:12px}
   .card{background:var(--card);border:1px solid var(--br);border-radius:14px;padding:16px}
   .title{font-weight:700;margin-bottom:10px}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  label{font-size:.9rem;color:var(--mut)}
+  label{font-size:.9rem;color:var(--mut);display:flex;gap:8px;align-items:center}
   input[type="number"],input[type="text"],button{background:#10151c;border:1px solid var(--br);color:var(--fg);border-radius:10px;padding:10px;font-size:.95rem}
+  input[type="range"]{accent-color:#7ab7ff}
   button{cursor:pointer}
   .drop{border:1px dashed #2b3544;border-radius:12px;padding:18px;text-align:center;background:#10151c}
   .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-top:10px}
@@ -36,11 +37,12 @@
   #ripWrap{height:60vh;min-height:420px}
   #atlasWrap{height:60vh;min-height:420px}
   canvas{image-rendering:pixelated}
+  .subtle{opacity:.8}
 </style>
 </head>
 <body>
 <header>
-  <h1>JACKRIP</h1>
+  <h1>JACKRIPv6</h1>
   <div class="tabs">
     <button class="tabBtn" data-tab="ripper" aria-pressed="true">Ripper</button>
     <button class="tabBtn" data-tab="atlas"  aria-pressed="false">Atlas</button>
@@ -57,22 +59,50 @@
         <label>Padding <input id="pad" type="number" value="2" min="0" max="64"></label>
         <label><input id="pot" type="checkbox" checked> Power-of-Two</label>
       </div>
+
       <div class="row" style="margin-top:6px">
         <button id="packBtn">Auto-Pack</button>
         <button id="editLayoutBtn">Edit Layout</button>
-        <label style="margin-left:auto"><input id="snapChk" type="checkbox" checked> Snap</label>
+        <label style="margin-left:auto"><input id="snapChk" type="checkbox" checked> Snap (global)</label>
       </div>
+
       <div class="row" style="margin-top:6px">
         <label>Atlas W <input id="atlasW" type="number" value="1024" min="16" step="16"></label>
         <label>Atlas H <input id="atlasH" type="number" value="1024" min="16" step="16"></label>
         <button id="resizeAtlasBtn">Resize Canvas</button>
       </div>
+
+      <!-- New: Grid Snap Controls (affects Ripper + Atlas) -->
+      <div class="row" style="margin-top:12px">
+        <div class="title subtle" style="margin:0">Grid Snap</div>
+        <label>Size
+          <input id="gridSizeRange" type="range" min="1" max="128" step="1" value="8">
+          <input id="gridSize" type="number" min="1" max="512" step="1" value="8" style="width:90px">
+        </label>
+      </div>
+
+      <!-- New: Rotation Controls (Atlas selection) -->
+      <div class="row" style="margin-top:12px">
+        <div class="title subtle" style="margin:0">Rotate Selection (Atlas)</div>
+        <label>Angle
+          <input id="rotSlider" type="range" min="-180" max="180" step="1" value="0" style="width:180px">
+          <input id="rotNum" type="number" min="-360" max="360" step="1" value="0" style="width:90px">
+        </label>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label><input id="rotSnapChk" type="checkbox" checked> Snap Rotation</label>
+        <label>Step
+          <input id="rotStep" type="number" min="1" max="90" step="1" value="15" style="width:90px">
+        </label>
+      </div>
+
       <div class="hint" id="atlasInfo" style="margin-top:6px"></div>
     </div>
+
     <div class="card">
       <div class="title">Export</div>
       <div class="row"><button id="downloadAtlasPng">Download PNG</button><button id="downloadAtlasJson">Download JSON</button></div>
-      <div class="hint">PNG background is transparent.</div>
+      <div class="hint">PNG background is transparent. JSON frames include <code>rot</code> when rotated.</div>
     </div>
   </aside>
 
@@ -101,9 +131,9 @@
           <button data-tool="quad">Quad</button>
           <button data-tool="lasso">Lasso</button>
           <label style="margin-left:12px"><input id="curvedChk" type="checkbox"> Curved edges (experimental)</label><br>
-          Quad: 4 clicks, 5th click restarts. Drag corners; drag inside to move all.  
-          Lasso does not correct perspective. After release, click-drag inside to move.  
-          Pan with <b>MMB</b> (or hold Space). Wheel zooms to cursor. Hold <b>Shift</b> while dragging to axis-lock.
+          Quad: 4 clicks, 5th click restarts. Drag corners; drag inside to move all.<br>
+          Lasso does not correct perspective. After release, click-drag inside to move.<br>
+          Pan with <b>MMB</b> (or hold Space). Wheel zooms to cursor. Hold <b>Shift</b> while dragging to axis-lock. Snap/grid obeys global Snap & size.
         </div>
         <div class="row" style="margin-top:8px"><button id="resetBtn">Reset Tool</button></div>
       </div>
@@ -166,6 +196,12 @@ const dl=(blob,name)=>{const a=document.createElement('a');a.href=URL.createObje
 const split=(n)=>{const m=(n||'sprite.png').match(/^(.*?)(\.[^.]*)?$/);return {base:m[1]||'sprite',ext:m[2]||'.png'};}
 const uname=(desired,set)=>{const {base,ext}=split(desired);let num=1,fin=desired||'sprite.png';while(set.has(fin))fin=`${base}_${num++}${ext}`;return fin;}
 function pointInPoly(pt,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const pi=poly[i],pj=poly[j];if(((pi.y>pt.y)!=(pj.y>pt.y))&&(pt.x<(pj.x-pi.x)*(pt.y-pi.y)/(pj.y-pi.y)+pi.x))c=!c;}return c;}
+const deg2rad=d=>d*Math.PI/180;
+
+/* global snap + grid size getters */
+const getSnapOn=()=>$("#snapChk").checked;
+const getGrid=()=>Math.max(1, +$("#gridSize").value|0);
+const getTol=()=>Math.max(2, Math.min(16, Math.round(getGrid()/2))); // tolerance for snapping
 
 /* ---------- tabs ---------- */
 const tabs={ripper:$("#tab_ripper"), atlas:$("#tab_atlas")};
@@ -179,8 +215,28 @@ function syncAtlasCss(){atlas.style.width=state.size.w+"px";atlas.style.height=s
 function drawAtlas(){
   atlas.width=state.size.w; atlas.height=state.size.h; syncAtlasCss();
   aG.clearRect(0,0,atlas.width,atlas.height); aG.imageSmoothingEnabled=false;
-  for(const p of state.placements){const it=state.items.find(i=>i.name===p.name); if(it) aG.drawImage(it.canvas,p.x,p.y);}
-  if(sel) { aG.save(); aG.strokeStyle="#7ab7ff"; aG.lineWidth=1.5; aG.strokeRect(sel.x+.5,sel.y+.5,sel.w,sel.h); aG.restore(); }
+
+  // draw each placement with rotation around center
+  for(const p of state.placements){
+    const it=state.items.find(i=>i.name===p.name); if(!it) continue;
+    const cx=p.x+p.w/2, cy=p.y+p.h/2, rot=(p.rot||0);
+    aG.save();
+    aG.translate(cx,cy);
+    aG.rotate(deg2rad(rot));
+    aG.drawImage(it.canvas, -p.w/2, -p.h/2);
+    aG.restore();
+  }
+
+  // selection outline (rotated)
+  if(sel){
+    const cx=sel.x+sel.w/2, cy=sel.y+sel.h/2, rot=(sel.rot||0);
+    aG.save();
+    aG.translate(cx,cy);
+    aG.rotate(deg2rad(rot));
+    aG.strokeStyle="#7ab7ff"; aG.lineWidth=1.5;
+    aG.strokeRect(-sel.w/2+.5,-sel.h/2+.5,sel.w,sel.h);
+    aG.restore();
+  }
 }
 function thumbs(){
   const host=$("#thumbs"); host.innerHTML="";
@@ -188,7 +244,8 @@ function thumbs(){
     const d=document.createElement("div"); d.className="thumb";
     const c=document.createElement("canvas"); c.width=it.w; c.height=it.h; c.getContext("2d").drawImage(it.canvas,0,0);
     const label=document.createElement("div"); label.className="hint"; label.textContent=`${it.name} (${it.w}×${it.h})`;
-    const rm=document.createElement("button"); rm.textContent="Remove"; rm.onclick=()=>{state.items.splice(idx,1); state.placements=state.placements.filter(p=>p.name!==it.name); thumbs(); drawAtlas();};
+    const rm=document.createElement("button"); rm.textContent="Remove";
+    rm.onclick=()=>{state.items.splice(idx,1); state.placements=state.placements.filter(p=>p.name!==it.name); thumbs(); drawAtlas();};
     d.append(c,label,rm); host.append(d);
   });
 }
@@ -216,7 +273,7 @@ $("#packBtn").addEventListener("click",()=>{
   const res=pack(state.items.map(i=>({name:i.name,w:i.w,h:i.h})),maxW,maxH,pad);
   let w=Math.max(1,res.w), h=Math.max(1,res.h); if($("#pot").checked){w=nextPOT(w);h=nextPOT(h);}
   w=Math.min(w,maxW); h=Math.min(h,maxH); state.size={w,h}; $("#atlasW").value=w; $("#atlasH").value=h;
-  state.placements=res.blocks.filter(b=>b.fit).map(b=>({name:b.name,x:b.fit.x,y:b.fit.y,w:b.w,h:b.h}));
+  state.placements=res.blocks.filter(b=>b.fit).map(b=>({name:b.name,x:b.fit.x,y:b.fit.y,w:b.w,h:b.h,rot:0}));
   const failed=res.blocks.filter(b=>!b.fit).length;
   $("#packStatus").textContent=failed?`${failed} didn’t fit`:`Packed ${state.placements.length}/${state.items.length}`;
   drawAtlas();
@@ -226,21 +283,96 @@ $("#resizeAtlasBtn").addEventListener("click",()=>{
   if($("#pot").checked){w=nextPOT(w);h=nextPOT(h);$("#atlasW").value=w;$("#atlasH").value=h;}
   state.size={w:Math.max(1,w),h:Math.max(1,h)}; drawAtlas();
 });
-/* manual layout */
-let sel=null, dragOff={x:0,y:0}, editing=false;
-$("#editLayoutBtn").addEventListener("click",e=>{editing=!editing; e.target.style.outline=editing?"2px solid var(--hl)":"none";});
+
+/* ===== Manual Layout (with rotation + grid snap) ===== */
+let sel=null, editing=false;
+let dragActive=false, lastMouse={x:0,y:0};
+
+$("#editLayoutBtn").addEventListener("click",e=>{
+  editing=!editing; e.target.style.outline=editing?"2px solid var(--hl)":"none";
+  if(!editing){ sel=null; syncRotateUI(); drawAtlas(); }
+});
+const atlasWrap=$("#atlasWrap");
+function screenToAtlas(e){
+  const r=atlas.getBoundingClientRect();
+  return { x:(e.clientX-r.left)*(atlas.width/r.width),
+           y:(e.clientY-r.top)*(atlas.height/r.height) };
+}
+function hitPlacement(p,pt){
+  // inverse-rotate the point around center, test in axis-aligned rect
+  const cx=p.x+p.w/2, cy=p.y+p.h/2, ang=-deg2rad(p.rot||0);
+  const cos=Math.cos(ang), sin=Math.sin(ang);
+  const rx = cos*(pt.x-cx) - sin*(pt.y-cy) + cx;
+  const ry = sin*(pt.x-cx) + cos*(pt.y-cy) + cy;
+  return (rx>=p.x && rx<=p.x+p.w && ry>=p.y && ry<=p.y+p.h);
+}
+function bboxOf(p){
+  // rotated rect bbox
+  const cx=p.x+p.w/2, cy=p.y+p.h/2, a=deg2rad(p.rot||0);
+  const corners=[
+    {x:p.x,      y:p.y},
+    {x:p.x+p.w,  y:p.y},
+    {x:p.x+p.w,  y:p.y+p.h},
+    {x:p.x,      y:p.y+p.h}
+  ].map(q=>{
+    const dx=q.x-cx, dy=q.y-cy;
+    return {x:cx+dx*Math.cos(a)-dy*Math.sin(a), y:cy+dx*Math.sin(a)+dy*Math.cos(a)};
+  });
+  const xs=corners.map(c=>c.x), ys=corners.map(c=>c.y);
+  return {minX:Math.min(...xs), maxX:Math.max(...xs), minY:Math.min(...ys), maxY:Math.max(...ys)};
+}
+function clampPlacement(p){
+  const b=bboxOf(p);
+  let offX=0, offY=0;
+  if(b.minX<0) offX=-b.minX;
+  if(b.maxX>atlas.width) offX+=atlas.width-b.maxX;
+  if(b.minY<0) offY=-b.minY;
+  if(b.maxY>atlas.height) offY+=atlas.height-b.maxY;
+  p.x+=offX; p.y+=offY;
+}
+function syncRotateUI(){
+  const slider=$("#rotSlider"), num=$("#rotNum");
+  const disabled = !sel || !editing;
+  slider.disabled=disabled; num.disabled=disabled;
+  $("#rotSnapChk").disabled=disabled; $("#rotStep").disabled=disabled;
+  if(sel){ slider.value = Math.round(sel.rot||0); num.value = Math.round(sel.rot||0); }
+  else { slider.value = 0; num.value = 0; }
+}
 atlas.addEventListener("mousedown",e=>{
-  if(!editing) return; const r=atlas.getBoundingClientRect();
-  const x=(e.clientX-r.left)*(atlas.width/r.width), y=(e.clientY-r.top)*(atlas.height/r.height);
-  sel=null; for(let i=state.placements.length-1;i>=0;i--){const p=state.placements[i]; if(x>=p.x&&x<=p.x+p.w&&y>=p.y&&y<=p.y+p.h){sel=p; dragOff.x=x-p.x; dragOff.y=y-p.y; break;}}
+  if(!editing) return;
+  const p=screenToAtlas(e);
+  sel=null;
+  for(let i=state.placements.length-1;i>=0;i--){
+    const pl=state.placements[i];
+    if(hitPlacement(pl,p)){ sel=pl; break; }
+  }
+  if(sel){ dragActive=true; lastMouse=p; syncRotateUI(); }
   drawAtlas();
 });
 window.addEventListener("mousemove",e=>{
-  if(!editing||!sel||e.buttons!==1) return; const r=atlas.getBoundingClientRect();
-  let x=(e.clientX-r.left)*(atlas.width/r.width), y=(e.clientY-r.top)*(atlas.height/r.height);
-  let nx=x-dragOff.x, ny=y-dragOff.y; if($("#snapChk").checked){nx=Math.round(nx); ny=Math.round(ny);}
-  nx=clamp(nx,0,atlas.width-sel.w); ny=clamp(ny,0,atlas.height-sel.h); sel.x=nx; sel.y=ny; drawAtlas();
+  if(!editing || !sel || !dragActive || e.buttons!==1) return;
+  const p=screenToAtlas(e);
+  let dx=p.x-lastMouse.x, dy=p.y-lastMouse.y;
+
+  // Apply movement
+  sel.x+=dx; sel.y+=dy;
+
+  // Grid snap for atlas move (top-left), tolerance-based
+  if(getSnapOn()){
+    const G=getGrid(), T=getTol();
+    const sx=Math.round(sel.x/G)*G, sy=Math.round(sel.y/G)*G;
+    if(Math.abs(sx-sel.x)<=T) sel.x=sx;
+    if(Math.abs(sy-sel.y)<=T) sel.y=sy;
+  }
+
+  // Clamp within bounds (consider rotation bbox)
+  clampPlacement(sel);
+
+  lastMouse=p;
+  drawAtlas();
 });
+window.addEventListener("mouseup",()=>{dragActive=false;});
+
 /* import/export */
 $("#browseBtn").addEventListener("click",()=>$("#fileInput").click());
 $("#fileInput").addEventListener("change",e=>addFiles(e.target.files).then(drawAtlas));
@@ -249,10 +381,42 @@ drop.addEventListener("dragleave",()=>{drop.style.borderColor="#2b3544";});
 drop.addEventListener("drop",e=>{e.preventDefault(); drop.style.borderColor="#2b3544"; addFiles(e.dataTransfer.files).then(drawAtlas);});
 $("#downloadAtlasPng").addEventListener("click",()=>atlas.toBlob(b=>dl(b,"atlas.png"),"image/png"));
 $("#downloadAtlasJson").addEventListener("click",()=>{
-  const frames={}; state.placements.forEach(p=>frames[p.name]={x:p.x,y:p.y,w:p.w,h:p.h});
-  const meta={app:"JACKRIP",size:state.size,count:state.placements.length};
+  const frames={};
+  state.placements.forEach(p=>frames[p.name]={x:p.x,y:p.y,w:p.w,h:p.h,rot:Math.round((p.rot||0)*100)/100});
+  const meta={app:"JACKRIPv6",size:state.size,count:state.placements.length};
   dl(new Blob([JSON.stringify({meta,frames},null,2)],{type:"application/json"}),"atlas.json");
 });
+
+/* ===== Rotation UI (Atlas) ===== */
+function applyRotation(val){
+  if(!sel) return;
+  let deg=+val||0;
+  if($("#rotSnapChk").checked){
+    const step=Math.max(1, +$("#rotStep").value|0);
+    deg=Math.round(deg/step)*step;
+  }
+  // keep in -180..180 for UI neatness
+  while(deg>180) deg-=360;
+  while(deg<-180) deg+=360;
+  sel.rot=deg;
+  $("#rotSlider").value=deg;
+  $("#rotNum").value=deg;
+  clampPlacement(sel);
+  drawAtlas();
+}
+$("#rotSlider").addEventListener("input",e=>applyRotation(e.target.value));
+$("#rotNum").addEventListener("input",e=>applyRotation(e.target.value));
+$("#rotSnapChk").addEventListener("change",()=>{ if(sel) applyRotation($("#rotNum").value); });
+$("#rotStep").addEventListener("input",()=>{ if(sel) applyRotation($("#rotNum").value); });
+
+/* ===== Grid size UI sync (affects Ripper + Atlas) ===== */
+const gridRange=$("#gridSizeRange"), gridNum=$("#gridSize");
+function syncGridInputs(fromRange){
+  if(fromRange) gridNum.value=gridRange.value;
+  else gridRange.value=gridNum.value;
+}
+gridRange.addEventListener("input",()=>syncGridInputs(true));
+gridNum.addEventListener("input",()=>{ gridNum.value=Math.max(1, +gridNum.value|0); syncGridInputs(false); });
 
 /* ================= RIPPER ================= */
 const ripWrap=$("#ripWrap"), stage=$("#stage");
@@ -337,7 +501,7 @@ function applyH(H,u,v){
   return {x:X/W, y:Y/W};
 }
 
-/* ---------- QUAD tool (with axis-lock + snapping) ---------- */
+/* ---------- QUAD tool (with axis-lock + global grid snap) ---------- */
 const quadTool={
   placing:true, points:[], corners:[{x:60,y:60},{x:260,y:60},{x:260,y:260},{x:60,y:260}],
   dragCorner:-1, dragAll:false, lastP:null, r:7,
@@ -362,8 +526,7 @@ const quadTool={
   },
   mousemove(p,buttons,shift){
     if(this.placing || !buttons) return;
-    const snapOn=$("#snapChk").checked;
-    const GRID=8, TOL=4; // grid size & snap tolerance (px)
+    const snapOn=getSnapOn(), GRID=getGrid(), TOL=getTol();
 
     const snapToOtherCorners=(pt,idx)=>{
       for(let i=0;i<4;i++){ if(i===idx) continue;
@@ -381,7 +544,6 @@ const quadTool={
     if(this.dragCorner>=0){
       let newP={x:p.x,y:p.y};
 
-      // axis lock (decide by initial direction while Shift is held)
       if(shift){
         if(this.dragAxisLock==null){
           const dx=Math.abs(newP.x-this.cornerStart.x), dy=Math.abs(newP.y-this.cornerStart.y);
@@ -399,10 +561,8 @@ const quadTool={
         newP=snapToOtherCorners(newP,this.dragCorner);
       }
 
-      // clamp inside image bounds
       newP.x=clamp(newP.x,0,src.width);
       newP.y=clamp(newP.y,0,src.height);
-
       this.corners[this.dragCorner]=newP;
       toolAPI.maybeAutosize();
       drawOverlay();
@@ -410,7 +570,6 @@ const quadTool={
     } else if(this.dragAll && this.lastP){
       let dx=p.x-this.lastP.x, dy=p.y-this.lastP.y;
 
-      // axis lock for whole-quad move
       if(shift){
         if(this.dragAxisLock==null){
           this.dragAxisLock=(Math.abs(dx)>Math.abs(dy))?"x":"y";
@@ -420,12 +579,9 @@ const quadTool={
         this.dragAxisLock=null;
       }
 
-      // compute tentative moved corners
       let moved=this.corners.map(c=>({x:c.x+dx,y:c.y+dy}));
 
-      // grid snapping for whole move (apply a shared small adjustment so the quad stays rigid)
       if(snapOn){
-        // find best small adjustment toward nearest grid for any corner (independently on axes)
         let bestAdjX=0, bestAdjY=0, bestAx=Infinity, bestAy=Infinity;
         for(const m of moved){
           const gx=Math.round(m.x/GRID)*GRID, gy=Math.round(m.y/GRID)*GRID;
@@ -433,19 +589,17 @@ const quadTool={
           if(ax<=TOL && ax<bestAx){ bestAx=ax; bestAdjX=gx-m.x; }
           if(ay<=TOL && ay<bestAy){ bestAy=ay; bestAdjY=gy-m.y; }
         }
-        // apply adjustments uniformly
         if(bestAx!==Infinity) moved=moved.map(pt=>({x:pt.x+bestAdjX,y:pt.y}));
         if(bestAy!==Infinity) moved=moved.map(pt=>({x:pt.x,y:pt.y+bestAdjY}));
       }
 
-      // clamp within image bounds
+      // clamp
       const minX=Math.min(...moved.map(p=>p.x)), minY=Math.min(...moved.map(p=>p.y));
       const maxX=Math.max(...moved.map(p=>p.x)), maxY=Math.max(...moved.map(p=>p.y));
       const offX = (minX<0)?-minX : (maxX>src.width)?(src.width-maxX):0;
       const offY = (minY<0)?-minY : (maxY>src.height)?(src.height-maxY):0;
       if(offX||offY) moved=moved.map(pt=>({x:pt.x+offX,y:pt.y+offY}));
 
-      // commit
       this.corners=moved;
       this.lastP={x:p.x,y:p.y};
       drawOverlay();
@@ -470,7 +624,6 @@ const quadTool={
         oG.beginPath();
         oG.moveTo(pts[0].x,pts[0].y); for(let i=1;i<4;i++) oG.lineTo(pts[i].x,pts[i].y); oG.closePath(); oG.stroke(); oG.fill();
       }
-      // Corners
       oG.fillStyle="#7ab7ff"; oG.strokeStyle="#000";
       for(let i=0;i<4;i++){ const c=this.corners[i]; oG.beginPath(); oG.arc(c.x,c.y,this.r,0,Math.PI*2); oG.fill(); oG.stroke(); }
     }else{
@@ -560,7 +713,7 @@ $("#extractBtn").addEventListener("click",()=>{
   const name=uname(desired,new Set(state.items.map(i=>i.name)));
   out.toBlob(async b=>{const img=await imgFromBlob(b); const c=cFromImg(img);
     state.items.push({name,canvas:c,w:c.width,h:c.height});
-    state.placements.push({name,x:0,y:0,w:c.width,h:c.height});
+    state.placements.push({name,x:0,y:0,w:c.width,h:c.height,rot:0});
     $("#ripName").value=name; thumbs(); drawAtlas();
   },"image/png");
 });
@@ -568,10 +721,13 @@ $("#saveRipBtn").addEventListener("click",()=>{ if(!out.width){alert("Extract fi
 
 /* boot */
 (function init(){
+  // sync grid UI pair
+  syncGridInputs(false);
   const ctx=src.getContext('2d'); src.width=640; src.height=360; ovl.width=src.width; ovl.height=src.height;
   ctx.fillStyle="#0b0f14"; ctx.fillRect(0,0,src.width,src.height);
-  ctx.fillStyle="#8899aa"; ctx.fillText("Drop or browse an image. Pan with MMB/Space. Wheel to zoom. Hold Shift to axis-lock.", 12, 20);
+  ctx.fillStyle="#8899aa"; ctx.fillText("Drop or browse an image. Pan with MMB/Space. Wheel to zoom. Shift=axis lock. Snap & grid size are global.", 12, 20);
   const w=+$("#atlasW").value|0, h=+$("#atlasH").value|0; state.size={w,h}; drawAtlas(); applyView();
+  syncRotateUI();
 })();
 })();</script>
 </body>
